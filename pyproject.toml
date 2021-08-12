@@ -1,0 +1,40 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+authors = ["Bill Allen <billallen256@gmail.com>"]
+description = "More user-friendly way to access PKI-enabled services."
+homepage = "http://github.com/nbgallery/pypki3"
+license = "MIT"
+name = "pypki3"
+readme = "README.md"
+version = "0.0.1"
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.10"
+cryptography = "*"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py38
+isolated_build = true
+
+[gh-actions]
+python =
+	3.8: py38
+	3.9: py39
+
+[testenv]
+recreate = true
+changedir = tests
+deps =
+	pylint
+commands =
+	python -m pylint --disable=C,R -s no pypki3
+	python -m unittest discover
+"""
