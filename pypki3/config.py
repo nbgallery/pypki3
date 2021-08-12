@@ -7,7 +7,7 @@ from getpass import getpass
 from os import environ
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Tuple
+from typing import Any, Optional, Tuple
 
 import ssl
 
@@ -23,7 +23,6 @@ from .exceptions import Pypki3Exception
 class LoadedPKIBytes:
     key: bytes
     cert: bytes
-    encoding: Encoding
 
 def get_config_path() -> Path:
     'Finds the path of the config file or raises an exception.'
@@ -41,10 +40,10 @@ def get_config_path() -> Path:
 
     raise Pypki3Exception(f'Could not locate pypki3 config at paths {possible_paths}')
 
-def loaded_encoded_p12(key_cert_tuple: Any, encoding: Encoding=Encoding.PEM) -> LoadedPKIBytes:
+def loaded_encoded_p12(key_cert_tuple: Tuple[Any, ...]) -> LoadedPKIBytes:
     key_bytes = key_cert_tuple[0].private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
     cert_bytes = key_cert_tuple[1].public_bytes(Encoding.PEM)
-    return LoadedPKIBytes(key_bytes, cert_bytes, encoding)
+    return LoadedPKIBytes(key_bytes, cert_bytes)
 
 def load_p12_with_password(p12_data: bytes, password: Optional[str]) -> LoadedPKIBytes:
     # try the provided password
@@ -61,7 +60,7 @@ def load_p12_with_password(p12_data: bytes, password: Optional[str]) -> LoadedPK
     while True:
         try:
             input_password = getpass(prompt='Enter private key password: ')
-            return loaded_encoded_p12(load_key_and_certificate(p12_data, input_password.encode('utf8')))
+            return loaded_encoded_p12(load_key_and_certificates(p12_data, input_password.encode('utf8')))
 
         except:
             print('Incorrect password for private key.  Please try again.')
@@ -75,7 +74,7 @@ def get_decrypted_p12(config: ConfigParser, password: Optional[str]) -> LoadedPK
 def loaded_encoded_pem(key_obj: Any, cert_obj: Any) -> LoadedPKIBytes:
     key_bytes = key_obj.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
     cert_bytes = cert_obj.public_bytes(Encoding.PEM)
-    return LoadedPKIBytes(key_bytes, cert_bytes, encoding)
+    return LoadedPKIBytes(key_bytes, cert_bytes)
 
 def load_pem_with_password(pem_data: bytes, password: Optional[str]) -> LoadedPKIBytes:
     # try the provided password
@@ -150,7 +149,7 @@ class Loader:
         if self.loaded_pki_bytes is None:
             if 'p12' in self.config['global']:
                 self.loaded_pki_bytes = get_decrypted_p12(self.config, password)
-            elif 'pem' in config['global']:
+            elif 'pem' in self.config['global']:
                 self.loaded_pki_bytes = get_decrypted_pem(self.config, password)
 
     def ca_path(self) -> Path:
