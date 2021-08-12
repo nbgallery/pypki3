@@ -33,7 +33,7 @@ The `pem` file must be a combined key-and-cert file of the following form, which
 
 ### Configuration file locations
 
-pypki3 will first look at the location specified by the `PYPKI3_CONFIG` environment variable for a config file.  This can be helpful in corporate Windows environments where the "home directory" is not always in a standard location.
+pypki3 will first look at the location specified by the `PYPKI3_CONFIG` environment variable for a config file.  This can be helpful in corporate Windows environments where the "home directory" is not always in a standard location.  It can also be useful in test environments.
 
 Next pypki3 will look in `~/.config/pypki3/config.ini`.
 

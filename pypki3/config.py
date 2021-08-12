@@ -160,7 +160,7 @@ class Loader:
         self.prepare(password)
 
         with TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir.name)
+            temp_path = Path(temp_dir)
             key_path = temp_path.joinpath('key.pem')
             cert_path = temp_path.joinpath('cert.pem')
             key_path.write_bytes(self.loaded_pki_bytes.key)
