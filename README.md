@@ -61,3 +61,15 @@ ctx = pypki3.ssl_context(password='supersecret')
 resp = urlopen(https_url, context=ctx)
 ...
 ```
+
+Sometimes it can also be useful to force the certificate password prompt to appear before `ssl_context()` is called, by another library for example.  To do this, simply use `prepare()`.
+
+```python
+import pypki3
+import another_library_that_uses_pypki3
+pypki3.prepare()
+
+# A lot of other code/steps...
+
+another_library_that_uses_pypki3.does_something()
+```

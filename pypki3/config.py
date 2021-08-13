@@ -86,7 +86,7 @@ def load_pem_with_password(pem_data: bytes, password: Optional[str]) -> LoadedPK
     # try no password
     try:
         key_obj = load_pem_private_key(pem_data, password=None)
-    except ValueError:
+    except TypeError:
         pass
     else:
         cert_obj = x509.load_pem_x509_certificate(pem_data)
@@ -145,7 +145,13 @@ class Loader:
         self.loaded_pki_bytes = None
         verify_config(self.config)
 
-    def prepare(self, password: Optional[str]) -> None:
+    def prepare(self, password: Optional[str]=None) -> None:
+        '''
+        Initiates decryption of certificates, if they haven't
+        already been decrypted.  This can be useful for forcing
+        the password prompt to appear before an actual call to
+        ssl_context().
+        '''
         if self.loaded_pki_bytes is None:
             if 'p12' in self.config['global']:
                 self.loaded_pki_bytes = get_decrypted_p12(self.config, password)
@@ -157,6 +163,12 @@ class Loader:
         return Path(self.config.get('global', 'ca'))
 
     def ssl_context(self, password: Optional[str]=None) -> ssl.SSLContext:
+        '''
+        Creates an ssl.SSLContext object based on the settings in
+        config.ini.  It takes an optional password parameter for
+        decrypting the certificate.  Otherwise, it will prompt for
+        a password if the certificate is encrypted.
+        '''
         self.prepare(password)
 
         with TemporaryDirectory() as temp_dir:
