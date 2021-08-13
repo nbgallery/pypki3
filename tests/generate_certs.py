@@ -65,7 +65,7 @@ def p12_bytes(key, cert, password):
 
     return data
 
-def main():
+def generate_certs(working_path: Path):
     root_key = make_key()
     root_cert = make_cert(root_key, root_key, 'My CA')
 
@@ -75,16 +75,25 @@ def main():
     server_key = make_key()
     server_cert = make_cert(server_key, root_key, 'Server cert', root_cert.issuer)
 
-    Path('ca.pem').write_bytes(cert_pem_bytes(root_cert))
+    working_path.joinpath('ca.pem').write_bytes(cert_pem_bytes(root_cert))
 
-    Path('user-combined-encrypted.pem').write_bytes(  key_pem_bytes(user_key,   b'userpass')   + cert_pem_bytes(user_cert))
-    Path('server-combined-encrypted.pem').write_bytes(key_pem_bytes(server_key, b'serverpass') + cert_pem_bytes(server_cert))
+    working_path.joinpath('user-combined-encrypted.pem').write_bytes(  key_pem_bytes(user_key,   b'userpass')   + cert_pem_bytes(user_cert))
+    working_path.joinpath('server-combined-encrypted.pem').write_bytes(key_pem_bytes(server_key, b'serverpass') + cert_pem_bytes(server_cert))
 
-    Path('user-combined-nopass.pem').write_bytes(     key_pem_bytes(user_key,   None)          + cert_pem_bytes(user_cert))
-    Path('server-combined-nopass.pem').write_bytes(   key_pem_bytes(server_key, None)          + cert_pem_bytes(server_cert))
+    working_path.joinpath('user-combined-nopass.pem').write_bytes(     key_pem_bytes(user_key,   None)          + cert_pem_bytes(user_cert))
+    working_path.joinpath('server-combined-nopass.pem').write_bytes(   key_pem_bytes(server_key, None)          + cert_pem_bytes(server_cert))
 
-    Path('user-encrypted.p12').write_bytes(p12_bytes(user_key, user_cert, b'userpass'))
-    Path('user-nopass.p12').write_bytes(p12_bytes(user_key, user_cert, None))
+    working_path.joinpath('user-encrypted.p12').write_bytes(p12_bytes(user_key, user_cert, b'userpass'))
+    working_path.joinpath('user-nopass.p12').write_bytes(p12_bytes(user_key, user_cert, None))
+
+def generate_unencrypted_pem_config(working_path: Path):
+    working_path.joinpath('config.ini').write_text(
+f'''
+[global]
+pem = {working_path}/user-combined-nopass.pem
+ca = {working_path}/ca.pem
+'''
+    )
 
 if __name__ == "__main__":
-    main()
+    generate_certs(Path.cwd())
