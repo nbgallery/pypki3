@@ -196,13 +196,13 @@ class Loader:
                 self.password = password
 
             def __enter__(self) -> Tuple[Path, Path]:
-                self.loader.prepare(self.password)
+                self.loader.prepare(self.password)  # pylint: disable=E1101
                 key_file = NamedTemporaryFile(delete=False)
                 cert_file = NamedTemporaryFile(delete=False)
-                self.key_path = Path(key_file.name)
-                self.cert_path = Path(cert_file.name)
-                self.key_path.write_bytes(self.loader.loaded_pki_bytes.key)
-                self.cert_path.write_bytes(self.loader.loaded_pki_bytes.cert)
+                self.key_path = Path(key_file.name)  # pylint: disable=W0201
+                self.cert_path = Path(cert_file.name) # pylint: disable=W0201
+                self.key_path.write_bytes(self.loader.loaded_pki_bytes.key)  # pylint: disable=E1101
+                self.cert_path.write_bytes(self.loader.loaded_pki_bytes.cert)  # pylint: disable=E1101
                 return self.key_path, self.cert_path
 
             def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
@@ -214,8 +214,8 @@ class Loader:
     def pip(self, *args, **kwargs):
         try:
             import pip as _pip
-        except ImportError:
-            raise Pypki3Exception('Unable to import pip.')
+        except ImportError as err:
+            raise Pypki3Exception('Unable to import pip.') from err
 
         new_args = []
 
