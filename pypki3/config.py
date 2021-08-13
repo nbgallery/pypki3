@@ -10,6 +10,8 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Optional, Tuple
 
 import ssl
+import subprocess
+import sys
 
 from cryptography.hazmat.primitives.serialization.pkcs12 import load_key_and_certificates
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
@@ -181,11 +183,6 @@ class Loader:
             return context
 
     def pip(self, *args, **kwargs):
-        try:
-            from pip._internal import main as pipmain
-        except ImportError as err:
-            raise Pypki3Exception('Unable to import pip.') from err
-
         new_args = []
 
         if 'args' in kwargs:
@@ -206,7 +203,11 @@ class Loader:
             new_args.append(f'--cert={cert_path}')
             new_args.append('--disable-pip-version-check')
 
-            pipmain(new_args)
+            command = [sys.executable, '-m', 'pip'] + new_args
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+            for line in iter(process.stdout.readline, b''):
+                sys.stdout.write(line.decode(sys.stdout.encoding))
 
 def CreateNamedTemporaryKeyCertPathsContextManager(loader: Loader):
     '''
