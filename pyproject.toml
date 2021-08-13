@@ -32,7 +32,10 @@ python =
 [testenv]
 recreate = true
 changedir = tests
+setenv =
+	PYPKI3_CONFIG = {toxinidir}/tests/config.ini
 deps =
+	cryptography
 	pylint
 commands =
 	python -m pylint --disable=C,R -s no pypki3
