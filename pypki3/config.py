@@ -182,7 +182,7 @@ class Loader:
 
     def pip(self, *args, **kwargs):
         try:
-            import pip as _pip
+            from pip._internal import main as pipmain
         except ImportError as err:
             raise Pypki3Exception('Unable to import pip.') from err
 
@@ -206,7 +206,7 @@ class Loader:
             new_args.append(f'--cert={cert_path}')
             new_args.append('--disable-pip-version-check')
 
-            _pip.main(new_args)
+            pipmain(new_args)
 
 def CreateNamedTemporaryKeyCertPathsContextManager(loader: Loader):
     '''
