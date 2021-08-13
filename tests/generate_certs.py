@@ -67,14 +67,10 @@ def main():
     server_cert = make_cert(server_key, root_key, 'Server cert', root_cert.issuer)
 
     Path('ca.pem').write_bytes(cert_bytes(root_cert))
-
-    Path('user-combined-encrypted.pem').write_bytes(
-        key_bytes(user_key, b'userpass')+cert_bytes(user_cert)
-    )
-
-    Path('server-combined-encrypted.pem').write_bytes(
-        key_bytes(server_key, b'serverpass')+cert_bytes(server_cert)
-    )
+    Path('user-combined-encrypted.pem').write_bytes(key_bytes(user_key, b'userpass')+cert_bytes(user_cert))
+    Path('user-combined-nopass.pem').write_bytes(key_bytes(user_key, None)+cert_bytes(user_cert))
+    Path('server-combined-encrypted.pem').write_bytes(key_bytes(server_key, b'serverpass')+cert_bytes(server_cert))
+    Path('server-combined-nopass.pem').write_bytes(key_bytes(server_key, None)+cert_bytes(server_cert))
 
 if __name__ == "__main__":
     main()
