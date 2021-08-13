@@ -59,11 +59,11 @@ def load_p12_with_password(p12_data: bytes, password: Optional[str]) -> LoadedPK
     # prompt for password
     while True:
         try:
-            input_password = getpass(prompt='Enter private key password: ')
+            input_password = getpass(prompt='Enter p12 private key password: ')
             return loaded_encoded_p12(load_key_and_certificates(p12_data, input_password.encode('utf8')))
 
         except Exception:
-            print('Incorrect password for private key.  Please try again.')
+            print('Incorrect password for p12 private key.  Please try again.')
             continue
 
 def get_decrypted_p12(config: ConfigParser, password: Optional[str]) -> LoadedPKIBytes:
@@ -95,11 +95,11 @@ def load_pem_with_password(pem_data: bytes, password: Optional[str]) -> LoadedPK
     # prompt for password
     while True:
         try:
-            input_password = getpass(prompt='Enter private key password: ')
+            input_password = getpass(prompt='Enter pem private key password: ')
             key_obj = load_pem_private_key(pem_data, input_password.encode('utf8'))
 
         except Exception:
-            print('Incorrect password for private key.  Please try again.')
+            print('Incorrect password for pem private key.  Please try again.')
             continue
 
         else:

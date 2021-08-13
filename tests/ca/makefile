@@ -1,6 +1,6 @@
 HOSTNAME := $(shell hostname -f)
 
-all: signuser signserver signuser_nopass signserver_nopass combined_user combined_user_nopass
+all: signuser signserver signuser_nopass signserver_nopass user_combined user_combined_nopass user_p12 user_p12_nopass
 
 cacsrjson:
 	sed 's/HOSTNAME/'`hostname -f`'/' csr.json.orig > csr.json
@@ -44,13 +44,19 @@ signserver: servercsr
 signserver_nopass: servercsr_nopass
 	cfssl sign -ca ca.pem -ca-key ca-key.pem server_nopass.csr | cfssljson -bare server-pub-key-nopass
 
-combined_user: signuser
+user_combined: signuser
 	cp user-priv-key.pem user-combined.pem
 	cat user-pub-key.pem >> user-combined.pem
 
-combined_user_nopass: signuser_nopass
+user_combined_nopass: signuser_nopass
 	cp user-priv-key-nopass.pem user-combined-nopass.pem
 	cat user-pub-key-nopass.pem >> user-combined-nopass.pem
 
+user_p12: signuser
+	openssl pkcs12 -export -out user.p12 -inkey user-priv-key.pem -in user-pub-key.pem -passin pass:userpass -passout pass:userpass
+
+user_p12_nopass: signuser_nopass
+	openssl pkcs12 -export -out user_nopass.p12 -inkey user-priv-key-nopass.pem -in user-pub-key-nopass.pem -nodes -passout pass:
+
 clean:
-	rm *.csr *.pem
+	rm *.csr *.pem *.p12
