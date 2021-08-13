@@ -226,8 +226,8 @@ def CreateNamedTemporaryKeyCertPathsContextManager(loader: Loader):
             self.loader.prepare(self.password)
             key_file = NamedTemporaryFile(delete=False)
             cert_file = NamedTemporaryFile(delete=False)
-            self.key_path = Path(key_file.name)
-            self.cert_path = Path(cert_file.name)
+            self.key_path = Path(key_file.name)  # pylint: disable=W0201
+            self.cert_path = Path(cert_file.name)  # pylint: disable=W0201
             self.key_path.write_bytes(self.loader.loaded_pki_bytes.key)
             self.cert_path.write_bytes(self.loader.loaded_pki_bytes.cert)
             return self.key_path, self.cert_path
