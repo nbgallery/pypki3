@@ -10,6 +10,7 @@ from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption, BestAvailableEncryption
+from cryptography.hazmat.primitives.serialization.pkcs12 import serialize_key_and_certificates
 
 def make_key():
     return rsa.generate_private_key(
@@ -45,7 +46,7 @@ def make_cert(key, signing_key, name, issuer=None):
 
     return cert
 
-def key_bytes(key, password):
+def key_pem_bytes(key, password):
     if password is None:
         key_data = key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
     else:
@@ -53,8 +54,16 @@ def key_bytes(key, password):
 
     return key_data
 
-def cert_bytes(cert):
+def cert_pem_bytes(cert):
     return cert.public_bytes(Encoding.PEM)
+
+def p12_bytes(key, cert, password):
+    if password is not None:
+        data = serialize_key_and_certificates(b'p12', key, cert, None, BestAvailableEncryption(password))
+    else:
+        data = serialize_key_and_certificates(b'p12', key, cert, None, NoEncryption())
+
+    return data
 
 def main():
     root_key = make_key()
@@ -66,11 +75,16 @@ def main():
     server_key = make_key()
     server_cert = make_cert(server_key, root_key, 'Server cert', root_cert.issuer)
 
-    Path('ca.pem').write_bytes(cert_bytes(root_cert))
-    Path('user-combined-encrypted.pem').write_bytes(key_bytes(user_key, b'userpass')+cert_bytes(user_cert))
-    Path('user-combined-nopass.pem').write_bytes(key_bytes(user_key, None)+cert_bytes(user_cert))
-    Path('server-combined-encrypted.pem').write_bytes(key_bytes(server_key, b'serverpass')+cert_bytes(server_cert))
-    Path('server-combined-nopass.pem').write_bytes(key_bytes(server_key, None)+cert_bytes(server_cert))
+    Path('ca.pem').write_bytes(cert_pem_bytes(root_cert))
+
+    Path('user-combined-encrypted.pem').write_bytes(  key_pem_bytes(user_key,   b'userpass')   + cert_pem_bytes(user_cert))
+    Path('server-combined-encrypted.pem').write_bytes(key_pem_bytes(server_key, b'serverpass') + cert_pem_bytes(server_cert))
+
+    Path('user-combined-nopass.pem').write_bytes(     key_pem_bytes(user_key,   None)          + cert_pem_bytes(user_cert))
+    Path('server-combined-nopass.pem').write_bytes(   key_pem_bytes(server_key, None)          + cert_pem_bytes(server_cert))
+
+    Path('user-encrypted.p12').write_bytes(p12_bytes(user_key, user_cert, b'userpass'))
+    Path('user-nopass.p12').write_bytes(p12_bytes(user_key, user_cert, None))
 
 if __name__ == "__main__":
     main()
