@@ -53,7 +53,7 @@ def load_p12_with_password(p12_data: bytes, password: Optional[str]) -> LoadedPK
     # try no password
     try:
         return loaded_encoded_p12(load_key_and_certificates(p12_data, None))
-    except Exception:
+    except ValueError:
         pass
 
     # prompt for password
@@ -62,7 +62,7 @@ def load_p12_with_password(p12_data: bytes, password: Optional[str]) -> LoadedPK
             input_password = getpass(prompt='Enter p12 private key password: ')
             return loaded_encoded_p12(load_key_and_certificates(p12_data, input_password.encode('utf8')))
 
-        except Exception:
+        except ValueError:
             print('Incorrect password for p12 private key.  Please try again.')
             continue
 
@@ -86,7 +86,7 @@ def load_pem_with_password(pem_data: bytes, password: Optional[str]) -> LoadedPK
     # try no password
     try:
         key_obj = load_pem_private_key(pem_data, password=None)
-    except Exception:
+    except ValueError:
         pass
     else:
         cert_obj = x509.load_pem_x509_certificate(pem_data)
@@ -98,7 +98,7 @@ def load_pem_with_password(pem_data: bytes, password: Optional[str]) -> LoadedPK
             input_password = getpass(prompt='Enter pem private key password: ')
             key_obj = load_pem_private_key(pem_data, input_password.encode('utf8'))
 
-        except Exception:
+        except ValueError:
             print('Incorrect password for pem private key.  Please try again.')
             continue
 
