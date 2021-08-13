@@ -76,3 +76,26 @@ pypki3.prepare()  # Prompts for password here
 # Does not prompt for password way down here
 another_library_that_uses_pypki3.does_something()
 ```
+
+### Getting a decrypted key/cert context
+
+pypki3 includes a context manager that ensures the decrypted key and cert are cleaned up.  This is useful when you want to make sure you don't leave your decrypted certs sitting around on disk.
+
+```python
+import pypki3
+
+with NamedTemporaryKeyCertPaths() as key_cert_paths:
+    key_path = key_cert_paths[0]  # key_path is a pathlib.Path object
+    cert_path = key_cert_paths[1]  # cert_path is a pathlib.Path object
+    # Do something awesome here
+
+# Decrypted key and cert are cleaned up when you leave the `with` context.
+```
+
+### Using the pip wrapper
+Some pip servers require PKI authentication.  To make this a bit easier, pypki3 includes a pip wrapper that takes care of filling in the `--client-cert` and `--cert` parameters based on the pypki3 configuration.  This also prevents pip from prompting for a password 8 million times when use password-protected (encrypted) certs.
+
+```python
+import pypki3
+pypki3.pip(['install', 'amazing-internal-package'])
+```
