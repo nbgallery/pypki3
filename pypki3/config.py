@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from getpass import getpass
 from os import environ
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import NamedTemporaryFile
 from typing import Any, Optional, Tuple
 
 import ssl
@@ -169,16 +169,44 @@ class Loader:
         decrypting the certificate.  Otherwise, it will prompt for
         a password if the certificate is encrypted.
         '''
-        self.prepare(password)
+        ContextManagerClass = self.NamedTemporaryKeyCertPaths()
 
-        with TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            key_path = temp_path.joinpath('key.pem')
-            cert_path = temp_path.joinpath('cert.pem')
-            key_path.write_bytes(self.loaded_pki_bytes.key)
-            cert_path.write_bytes(self.loaded_pki_bytes.cert)
+        with ContextManagerClass(password) as key_cert_paths:
+            key_path = key_cert_paths[0]
+            cert_path = key_cert_paths[1]
             context = ssl.SSLContext()
             context.load_cert_chain(cert_path, key_path)
             context.verify_mode = ssl.CERT_REQUIRED
             context.load_verify_locations(cafile=self.ca_path())
             return context
+
+    def NamedTemporaryKeyCertPaths(self):
+        '''
+        Returns a context manager class with the
+        loader already defined.  This is done so
+        external users of the pypki3 package can
+        reuse the same loader that's already been
+        prepare()'ed when creating the context.
+        '''
+        loader = self
+
+        class ContextManager:
+            def __init__(self, password: Optional[str]=None) -> None:
+                self.loader = loader  # uses the loader defined from self above
+                self.password = password
+
+            def __enter__(self) -> Tuple[Path, Path]:
+                self.loader.prepare(self.password)
+                key_file = NamedTemporaryFile(delete=False)
+                cert_file = NamedTemporaryFile(delete=False)
+                self.key_path = Path(key_file.name)
+                self.cert_path = Path(cert_file.name)
+                self.key_path.write_bytes(self.loader.loaded_pki_bytes.key)
+                self.cert_path.write_bytes(self.loader.loaded_pki_bytes.cert)
+                return self.key_path, self.cert_path
+
+            def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
+                self.key_path.unlink()
+                self.cert_path.unlink()
+
+        return ContextManager  # returns the class, not an instance
