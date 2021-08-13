@@ -169,7 +169,7 @@ class Loader:
         decrypting the certificate.  Otherwise, it will prompt for
         a password if the certificate is encrypted.
         '''
-        ContextManagerClass = self.NamedTemporaryKeyCertPaths()
+        ContextManagerClass = CreateNamedTemporaryKeyCertPathsContextManager(self)
 
         with ContextManagerClass(password) as key_cert_paths:
             key_path = key_cert_paths[0]
@@ -179,37 +179,6 @@ class Loader:
             context.verify_mode = ssl.CERT_REQUIRED
             context.load_verify_locations(cafile=self.ca_path())
             return context
-
-    def NamedTemporaryKeyCertPaths(self):
-        '''
-        Returns a context manager class with the
-        loader already defined.  This is done so
-        external users of the pypki3 package can
-        reuse the same loader that's already been
-        prepare()'ed when creating the context.
-        '''
-        loader = self
-
-        class ContextManager:
-            def __init__(self, password: Optional[str]=None) -> None:
-                self.loader = loader  # uses the loader defined from self above
-                self.password = password
-
-            def __enter__(self) -> Tuple[Path, Path]:
-                self.loader.prepare(self.password)  # pylint: disable=E1101
-                key_file = NamedTemporaryFile(delete=False)
-                cert_file = NamedTemporaryFile(delete=False)
-                self.key_path = Path(key_file.name)  # pylint: disable=W0201
-                self.cert_path = Path(cert_file.name) # pylint: disable=W0201
-                self.key_path.write_bytes(self.loader.loaded_pki_bytes.key)  # pylint: disable=E1101
-                self.cert_path.write_bytes(self.loader.loaded_pki_bytes.cert)  # pylint: disable=E1101
-                return self.key_path, self.cert_path
-
-            def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
-                self.key_path.unlink()
-                self.cert_path.unlink()
-
-        return ContextManager  # returns the class, not an instance
 
     def pip(self, *args, **kwargs):
         try:
@@ -227,7 +196,7 @@ class Loader:
         new_args = [ arg for arg in new_args if '--client-cert=' not in arg ]
         new_args = [ arg for arg in new_args if '--cert=' not in arg ]
 
-        ContextManagerClass = self.NamedTemporaryKeyCertPaths()
+        ContextManagerClass = CreateNamedTemporaryKeyCertPathsContextManager(self)
 
         with ContextManagerClass() as key_cert_paths:
             key_path = key_cert_paths[0]
@@ -238,3 +207,33 @@ class Loader:
             new_args.append('--disable-pip-version-check')
 
             _pip.main(new_args)
+
+def CreateNamedTemporaryKeyCertPathsContextManager(loader: Loader):
+    '''
+    Returns a context manager class with the
+    loader already defined.  This is done so
+    external users of the pypki3 package can
+    reuse the same loader that's already been
+    prepare()'ed when creating the context.
+    '''
+
+    class ContextManager:
+        def __init__(self, password: Optional[str]=None) -> None:
+            self.loader = loader  # uses the loader passed in above
+            self.password = password
+
+        def __enter__(self) -> Tuple[Path, Path]:
+            self.loader.prepare(self.password)
+            key_file = NamedTemporaryFile(delete=False)
+            cert_file = NamedTemporaryFile(delete=False)
+            self.key_path = Path(key_file.name)
+            self.cert_path = Path(cert_file.name)
+            self.key_path.write_bytes(self.loader.loaded_pki_bytes.key)
+            self.cert_path.write_bytes(self.loader.loaded_pki_bytes.cert)
+            return self.key_path, self.cert_path
+
+        def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
+            self.key_path.unlink()
+            self.cert_path.unlink()
+
+    return ContextManager  # returns the class, not an instance

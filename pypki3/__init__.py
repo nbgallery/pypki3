@@ -2,11 +2,12 @@
 
 from typing import Optional
 
+from .config import CreateNamedTemporaryKeyCertPathsContextManager
 from .config import Loader
 
 loader = Loader()
 
 prepare = loader.prepare
 ssl_context = loader.ssl_context
-NamedTemporaryKeyCertPaths = loader.NamedTemporaryKeyCertPaths()
+NamedTemporaryKeyCertPaths = CreateNamedTemporaryKeyCertPathsContextManager(loader)
 pip = loader.pip
