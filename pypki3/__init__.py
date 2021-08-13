@@ -9,3 +9,4 @@ loader = Loader()
 prepare = loader.prepare
 ssl_context = loader.ssl_context
 NamedTemporaryKeyCertPaths = loader.NamedTemporaryKeyCertPaths()
+pip = loader.pip

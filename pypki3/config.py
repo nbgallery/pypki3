@@ -210,3 +210,31 @@ class Loader:
                 self.cert_path.unlink()
 
         return ContextManager  # returns the class, not an instance
+
+    def pip(self, *args, **kwargs):
+        try:
+            import pip as _pip
+        except ImportError:
+            raise Pypki3Exception('Unable to import pip.')
+
+        new_args = []
+
+        if 'args' in kwargs:
+            new_args = kwargs['args']
+        elif len(args) > 0 and len(args[0]) > 0:
+            new_args = args[0]
+
+        new_args = [ arg for arg in new_args if '--client-cert=' not in arg ]
+        new_args = [ arg for arg in new_args if '--cert=' not in arg ]
+
+        ContextManagerClass = self.NamedTemporaryKeyCertPaths()
+
+        with ContextManagerClass() as key_cert_paths:
+            key_path = key_cert_paths[0]
+            cert_path = key_cert_paths[1]
+
+            new_args.append(f'--client-cert={key_path}')
+            new_args.append(f'--cert={cert_path}')
+            new_args.append('--disable-pip-version-check')
+
+            _pip.main(new_args)
