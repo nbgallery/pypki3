@@ -62,14 +62,17 @@ resp = urlopen(https_url, context=ctx)
 ...
 ```
 
+### Prompting for a password early (optional)
+
 Sometimes it can also be useful to force the certificate password prompt to appear before `ssl_context()` is called, by another library for example.  To do this, simply use `prepare()`.
 
 ```python
 import pypki3
 import another_library_that_uses_pypki3
-pypki3.prepare()
+pypki3.prepare()  # Prompts for password here
 
 # A lot of other code/steps...
 
+# Does not prompt for password way down here
 another_library_that_uses_pypki3.does_something()
 ```
