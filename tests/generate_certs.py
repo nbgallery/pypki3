@@ -17,7 +17,7 @@ def make_key():
         key_size=2048,
     )
 
-def make_cert(signing_key, name, issuer=None):
+def make_cert(key, signing_key, name, issuer=None):
     subject = x509.Name([
         x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
         x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Colorado"),
@@ -34,7 +34,7 @@ def make_cert(signing_key, name, issuer=None):
     ).issuer_name(
         issuer
     ).public_key(
-        signing_key.public_key()
+        key.public_key()
     ).serial_number(
         x509.random_serial_number()
     ).not_valid_before(
@@ -53,26 +53,28 @@ def key_bytes(key, password):
 
     return key_data
 
-def cert_bytes(cert, path):
+def cert_bytes(cert):
     return cert.public_bytes(Encoding.PEM)
 
 def main():
     root_key = make_key()
-    root_cert = make_cert(root_key, 'My CA')
+    root_cert = make_cert(root_key, root_key, 'My CA')
 
     user_key = make_key()
-    user_cert = make_cert(root_key, 'User cert', root_cert.issuer)
+    user_cert = make_cert(user_key, root_key, 'User cert', root_cert.issuer)
 
     server_key = make_key()
-    server_cert = make_cert(root_key, 'Server cert', root_cert.issuer)
-
-    #print(type(user_key))
-    #print(dir(user_key))
-    #print(type(user_cert))
-    #print(dir(user_cert))
+    server_cert = make_cert(server_key, root_key, 'Server cert', root_cert.issuer)
 
     Path('ca.pem').write_bytes(cert_bytes(root_cert))
-    Path('user-combined-encrypted.pem').write_bytes(key_bytes(user_key)+cert_bytes(user_cert))
+
+    Path('user-combined-encrypted.pem').write_bytes(
+        key_bytes(user_key, b'userpass')+cert_bytes(user_cert)
+    )
+
+    Path('server-combined-encrypted.pem').write_bytes(
+        key_bytes(server_key, b'serverpass')+cert_bytes(server_cert)
+    )
 
 if __name__ == "__main__":
     main()
