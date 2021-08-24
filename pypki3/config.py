@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from getpass import getpass
 from os import environ
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import Any, Optional, Tuple
 
 import ssl
@@ -18,6 +17,8 @@ from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from cryptography import x509
+
+from temppath import TemporaryPath, TemporaryPathContext
 
 from .exceptions import Pypki3Exception
 
@@ -41,6 +42,11 @@ def get_config_path() -> Path:
             return path
 
     raise Pypki3Exception(f'Could not locate pypki3 config at paths {possible_paths}')
+
+def combine_key_and_cert(combined_path: Path, key_path: Path, cert_path: Path) -> None:
+    with combined_path.open('wb') as outfile:
+        outfile.write(key_path.read_bytes())
+        outfile.write(cert_path.read_bytes())
 
 def loaded_encoded_p12(key_cert_tuple: Tuple[Any, ...]) -> LoadedPKIBytes:
     key_bytes = key_cert_tuple[0].private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
@@ -198,16 +204,19 @@ class Loader:
         with ContextManagerClass() as key_cert_paths:
             key_path = key_cert_paths[0]
             cert_path = key_cert_paths[1]
+            ca_path = self.ca_path()
 
-            new_args.append(f'--client-cert={key_path}')
-            new_args.append(f'--cert={cert_path}')
-            new_args.append('--disable-pip-version-check')
+            with TemporaryPathContext() as combined_key_cert_path:
+                combine_key_and_cert(combined_key_cert_path, key_path, cert_path)
+                new_args.append(f'--client-cert={combined_key_cert_path}')
+                new_args.append(f'--cert={ca_path}')
+                new_args.append('--disable-pip-version-check')
 
-            command = [sys.executable, '-m', 'pip'] + new_args
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                command = [sys.executable, '-m', 'pip'] + new_args
+                process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-            for line in iter(process.stdout.readline, b''):
-                sys.stdout.write(line.decode(sys.stdout.encoding))
+                for line in iter(process.stdout.readline, b''):
+                    sys.stdout.write(line.decode(sys.stdout.encoding))
 
 def CreateNamedTemporaryKeyCertPathsContextManager(loader: Loader):
     '''
@@ -225,10 +234,8 @@ def CreateNamedTemporaryKeyCertPathsContextManager(loader: Loader):
 
         def __enter__(self) -> Tuple[Path, Path]:
             self.loader.prepare(self.password)
-            key_file = NamedTemporaryFile(delete=False)
-            cert_file = NamedTemporaryFile(delete=False)
-            self.key_path = Path(key_file.name)  # pylint: disable=W0201
-            self.cert_path = Path(cert_file.name)  # pylint: disable=W0201
+            self.key_path = TemporaryPath()  # pylint: disable=W0201
+            self.cert_path = TemporaryPath()  # pylint: disable=W0201
             self.key_path.write_bytes(self.loader.loaded_pki_bytes.key)
             self.cert_path.write_bytes(self.loader.loaded_pki_bytes.cert)
             return self.key_path, self.cert_path

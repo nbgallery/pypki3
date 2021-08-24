@@ -12,8 +12,9 @@ readme = "README.md"
 version = "0.0.1"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.10"
+python = ">=3.7"
 cryptography = "*"
+temppath = "*"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
@@ -35,6 +36,7 @@ changedir = tests
 setenv =
 	PYPKI3_CONFIG = {toxinidir}/tests/config.ini
 deps =
+	temppath
 	cryptography
 	pylint
 commands =
