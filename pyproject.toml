@@ -33,7 +33,7 @@ python =
 [testenv]
 recreate = true
 setenv =
-	PYPKI3_CONFIG = {toxinidir}/tests/config.ini
+	PYPKI3_CONFIG = {toxinidir}/config.ini
 deps =
 	temppath
 	cryptography<35

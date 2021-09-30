@@ -2,3 +2,6 @@
 dist
 poetry.lock
 __pycache__
+*.pem
+*.p12
+config.ini
