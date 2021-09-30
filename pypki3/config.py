@@ -3,10 +3,13 @@
 
 from configparser import ConfigParser
 from dataclasses import dataclass
+from enum import auto, Enum
 from getpass import getpass
+from json import loads
 from os import environ
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from time import sleep
+from typing import Any, List, Optional, Tuple
 
 import ssl
 import subprocess
@@ -21,27 +24,124 @@ from cryptography import x509
 from temppath import TemporaryPath, TemporaryPathContext
 
 from .exceptions import Pypki3Exception
+from .utils import in_ipython, in_nbgallery
+
+class ConfigType(Enum):
+    Pypki2 = auto()
+    Pypki3 = auto()
+
+@dataclass
+class Config:
+    p12: Optional[Path]
+    pem: Optional[Path]
+    ca: Optional[Path]
 
 @dataclass
 class LoadedPKIBytes:
     key: bytes
     cert: bytes
 
-def get_config_path() -> Path:
+def make_pypki3_config(path: Path) -> Config:
+    config = ConfigParser()
+    config.read(path)
+
+    p12 = config.get('global', 'p12', fallback=None)
+    pem = config.get('global', 'pem', fallback=None)
+    ca = config.get('global', 'ca',  fallback=None)
+
+    p12_path = Path(p12) if p12 is not None else None
+    pem_path = Path(pem) if pem is not None else None
+    ca_path = Path(ca) if ca is not None else None
+
+    return Config(
+        p12=p12_path,
+        pem=pem_path,
+        ca=ca_path,
+    )
+
+def make_pypki2_config(path: Path) -> Config:
+    '''
+    Create a Config instance from a pypki2 JSON configuration
+    file, which looked like this:
+
+    ```json
+    {
+        "p12": {
+            "path": "/home/you/certificates/you.p12"
+        },
+        "ca": "/home/you/certificates/certificate_authorities_file.pem"
+    }
+    ```
+    '''
+    config = loads(path.read_text())
+    p12 = config.get('p12', None)
+
+    if p12 is not None:
+        p12 = p12.get('path', None)
+
+    ca = config.get('ca', None)
+
+    p12_path = Path(p12) if p12 is not None else None
+    ca_path = Path(ca) if ca is not None else None
+
+    return Config(
+        p12=p12_path,
+        pem=None,  # PEM config never really worked in pypki2
+        ca=ca_path,
+    )
+
+def ipython_config(config_path: Path) -> bool:
+    '''
+    Attempts to use the pypki2 configuration dialog.
+    This will only work in the correct environment.
+    Returns True if the run was successful.
+    Returns False if nothing happened because the
+    environment was not correct.
+    '''
+    if in_ipython() and in_nbgallery():
+        from IPython.display import display, Javascript  # pylint: disable=E0401
+        display(Javascript("MyPKI.init({'no_verify':true, configure:true});"))
+
+        while True:
+            config = make_pypki2_config(config_path)
+
+            if config.p12 is not None:
+                return True
+
+            sleep(2)
+
+    return False
+
+def get_config_path() -> Tuple[ConfigType, Path]:
     'Finds the path of the config file or raises an exception.'
-    possible_paths: Tuple[Path] = [
-        Path.home().joinpath('.config/pypki3/config.ini'),
-        Path('/etc/pypki3/config.ini'),
+
+    # standard paths
+    possible_paths: List[Tuple[ConfigType, Path]] = [
+        (ConfigType.Pypki3, Path.home().joinpath('.config/pypki3/config.ini')),
+        (ConfigType.Pypki3, Path('/etc/pypki3/config.ini')),
     ]
 
     if 'PYPKI3_CONFIG' in environ:
-        possible_paths = [Path(environ['PYPKI3_CONFIG'])] + possible_paths
+        # append to front if configured; highest priority
+        possible_paths = [(ConfigType.Pypki3, Path(environ['PYPKI3_CONFIG']))] + possible_paths
 
-    for path in possible_paths:
+    if 'MYPKI_CONFIG' in environ:
+        # append to end if configured; lowest priority
+        possible_paths = possible_paths + [(ConfigType.Pypki2, Path(environ['MYPKI_CONFIG']).joinpath('mypki_config'))]
+
+    for config_type, path in possible_paths:
         if path.exists():
-            return path
+            return config_type, path
 
-    raise Pypki3Exception(f'Could not locate pypki3 config at paths {possible_paths}')
+    # We could not find a pypki3 configuration, or predefined pypki2 configuration,
+    # so try using the config dialog.
+    pypki2_config_path = Path.home().joinpath('.mypki')
+
+    if ipython_config(pypki2_config_path):
+        return ConfigType.Pypki2, pypki2_config_path
+
+    possible_paths_str = ', '.join([str(p[1]) for p in possible_paths])
+    raise Pypki3Exception(f'Could not locate pypki3 config at paths {possible_paths_str}')
 
 def combine_key_and_cert(combined_path: Path, key_path: Path, cert_path: Path) -> None:
     with combined_path.open('wb') as outfile:
@@ -74,9 +174,8 @@ def load_p12_with_password(p12_data: bytes, password: Optional[str]) -> LoadedPK
             print('Incorrect password for p12 private key.  Please try again.')
             continue
 
-def get_decrypted_p12(config: ConfigParser, password: Optional[str]) -> LoadedPKIBytes:
-    p12_path = Path(config.get('global', 'p12'))
-    p12_data = p12_path.read_bytes()
+def get_decrypted_p12(config: Config, password: Optional[str]) -> LoadedPKIBytes:
+    p12_data = config.p12.read_bytes()
     return load_p12_with_password(p12_data, password)
 
 def loaded_encoded_pem(key_obj: Any, cert_obj: Any) -> LoadedPKIBytes:
@@ -114,42 +213,43 @@ def load_pem_with_password(pem_data: bytes, password: Optional[str]) -> LoadedPK
             cert_obj = x509.load_pem_x509_certificate(pem_data)
             return loaded_encoded_pem(key_obj, cert_obj)
 
-def get_decrypted_pem(config: ConfigParser, password: Optional[str]) -> LoadedPKIBytes:
-    pem_path = Path(config.get('global', 'pem'))
-    pem_data = pem_path.read_bytes()
+def get_decrypted_pem(config: Config, password: Optional[str]) -> LoadedPKIBytes:
+    pem_data = config.pem.read_bytes()
     return load_pem_with_password(pem_data, password)
 
-def verify_config(config: ConfigParser) -> None:
-    if 'global' not in config:
-        raise Pypki3Exception('[global] section missing from config')
+def verify_config(config: Config) -> None:
+    if config.p12 is None and config.pem is None:
+        raise Pypki3Exception('Config must contain either "p12" or "pem" entry')
 
-    if 'p12' not in config['global'] and 'pem' not in config['global']:
-        raise Pypki3Exception('[global] section must contain either "p12" or "pem" entry')
+    if config.ca is None:
+        raise Pypki3Exception('Config missing "ca" entry')
 
-    if 'ca' not in config['global']:
-        raise Pypki3Exception('[global] section missing "ca" entry')
+    if config.p12 is not None and not config.p12.exists():
+        raise Pypki3Exception(f'p12 does not exist at {config.p12}')
 
-    if 'p12' in config['global']:
-        p12_path = Path(config.get('global', 'p12'))
+    if config.pem is not None and not config.pem.exists():
+        raise Pypki3Exception(f'pem does not exist at {config.pem}')
 
-        if not p12_path.exists():
-            raise Pypki3Exception(f'p12 does not exist at {p12_path}')
+    if not config.ca.exists():
+        raise Pypki3Exception(f'certificate authority file does not exist at {config.ca}')
 
-    if 'pem' in config['global']:
-        pem_path = Path(config.get('global', 'pem'))
+def make_config_by_type(config_type_path: Tuple[ConfigType, Path]) -> Config:
+    '''
+    Returns a Config instance based on the type of config file
+    and its config info, or raises an exception if invalid.
+    '''
+    config_type, path = config_type_path
 
-        if not pem_path.exists():
-            raise Pypki3Exception(f'pem does not exist at {pem_path}')
+    if config_type == ConfigType.Pypki3:
+        return make_pypki3_config(path)
+    elif config_type == ConfigType.Pypki2:
+        return make_pypki2_config(path)
 
-    ca_path = Path(config.get('global', 'ca'))
-
-    if not ca_path.exists():
-        raise Pypki3Exception(f'certificate authority file does not exist at {ca_path}')
+    raise Pypki3Exception('Received unrecognized ConfigType')
 
 class Loader:
     def __init__(self) -> None:
-        self.config = ConfigParser()
-        self.config.read(get_config_path())
+        self.config = make_config_by_type(get_config_path())
         self.loaded_pki_bytes = None
         verify_config(self.config)
 
@@ -161,14 +261,14 @@ class Loader:
         ssl_context().
         '''
         if self.loaded_pki_bytes is None:
-            if 'p12' in self.config['global']:
+            if self.config.p12 is not None:
                 self.loaded_pki_bytes = get_decrypted_p12(self.config, password)
-            elif 'pem' in self.config['global']:
+            elif self.config.pem is not None:
                 self.loaded_pki_bytes = get_decrypted_pem(self.config, password)
 
     def ca_path(self) -> Path:
         'Convenience function for getting the certificate authority file path.'
-        return Path(self.config.get('global', 'ca'))
+        return self.config.ca
 
     def ssl_context(self, password: Optional[str]=None) -> ssl.SSLContext:
         '''

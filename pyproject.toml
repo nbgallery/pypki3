@@ -13,7 +13,7 @@ version = "0.0.1"
 
 [tool.poetry.dependencies]
 python = ">=3.7"
-cryptography = "*"
+cryptography = "<35"
 temppath = "*"
 
 [tool.poetry.dev-dependencies]
@@ -32,14 +32,13 @@ python =
 
 [testenv]
 recreate = true
-changedir = tests
 setenv =
 	PYPKI3_CONFIG = {toxinidir}/tests/config.ini
 deps =
 	temppath
-	cryptography
+	cryptography<35
 	pylint
 commands =
 	python -m pylint --disable=C,R -s no pypki3
-	python -m unittest discover
+	python -m unittest discover tests
 """
