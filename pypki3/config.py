@@ -21,6 +21,8 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from cryptography import x509
 
+from pem import parse as parse_pem
+
 from temppath import TemporaryPath, TemporaryPathContext
 
 from .exceptions import Pypki3Exception
@@ -183,34 +185,44 @@ def loaded_encoded_pem(key_obj: Any, cert_obj: Any) -> LoadedPKIBytes:
     cert_bytes = cert_obj.public_bytes(Encoding.PEM)
     return LoadedPKIBytes(key_bytes, cert_bytes)
 
+def separate_pem(pem_data: bytes) -> Tuple[bytes, bytes]:
+    certs = parse_pem(pem_data)
+
+    if len(certs) != 2:
+        raise Pypki3Exception('PEM must contain the key then certificate')
+
+    return certs[0].as_bytes(), certs[1].as_bytes()
+
 def load_pem_with_password(pem_data: bytes, password: Optional[str]) -> LoadedPKIBytes:
+    key_data, cert_data = separate_pem(pem_data)
+
     # try the provided password
     if password is not None:
-        key_obj = load_pem_private_key(pem_data, password.encode('utf8'))
-        cert_obj = x509.load_pem_x509_certificate(pem_data)
+        key_obj = load_pem_private_key(key_data, password.encode('utf8'))
+        cert_obj = x509.load_pem_x509_certificate(cert_data)
         return loaded_encoded_pem(key_obj, cert_obj)
 
     # try no password
     try:
-        key_obj = load_pem_private_key(pem_data, password=None)
+        key_obj = load_pem_private_key(key_data, password=None)
     except TypeError:
         pass
     else:
-        cert_obj = x509.load_pem_x509_certificate(pem_data)
+        cert_obj = x509.load_pem_x509_certificate(cert_data)
         return loaded_encoded_pem(key_obj, cert_obj)
 
     # prompt for password
     while True:
         try:
             input_password = getpass(prompt='Enter pem private key password: ')
-            key_obj = load_pem_private_key(pem_data, input_password.encode('utf8'))
+            key_obj = load_pem_private_key(key_data, input_password.encode('utf8'))
 
         except ValueError:
             print('Incorrect password for pem private key.  Please try again.')
             continue
 
         else:
-            cert_obj = x509.load_pem_x509_certificate(pem_data)
+            cert_obj = x509.load_pem_x509_certificate(cert_data)
             return loaded_encoded_pem(key_obj, cert_obj)
 
 def get_decrypted_pem(config: Config, password: Optional[str]) -> LoadedPKIBytes:

@@ -13,7 +13,8 @@ version = "0.0.1"
 
 [tool.poetry.dependencies]
 python = ">=3.7"
-cryptography = "<35"
+cryptography = "*"
+pem = "*"
 temppath = "*"
 
 [tool.poetry.dev-dependencies]
@@ -36,7 +37,8 @@ setenv =
 	PYPKI3_CONFIG = {toxinidir}/config.ini
 deps =
 	temppath
-	cryptography<35
+	cryptography
+	pem
 	pylint
 commands =
 	python -m pylint --disable=C,R -s no pypki3
