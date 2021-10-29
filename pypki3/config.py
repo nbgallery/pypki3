@@ -104,13 +104,20 @@ def ipython_config(config_path: Path) -> bool:
         from IPython.display import display, Javascript  # pylint: disable=E0401
         display(Javascript("MyPKI.init({'no_verify':true, configure:true});"))
 
+        # Loop until the user completes the
+        # Javascript dialog above, which
+        # creates the .mypki file.
         while True:
-            config = make_pypki2_config(config_path)
+            try:
+                config = make_pypki2_config(config_path)
+            except FileNotFoundError:
+                sleep(2)
+                continue
 
-            if config.p12 is not None:
-                return True
+            if config.p12 is None:
+                return False
 
-            sleep(2)
+            return True
 
     return False
 

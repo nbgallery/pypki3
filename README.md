@@ -37,7 +37,9 @@ pypki3 will first look at the location specified by the `PYPKI3_CONFIG` environm
 
 Next pypki3 will look in `~/.config/pypki3/config.ini`.
 
-Finally, pypki3 will look in `/etc/pypki3/config.ini`.
+Next pypki3 will look in `/etc/pypki3/config.ini`.
+
+Finally, for existing library support, if pypki3 is being used in an NBGallery Jupyter environment, then pypki3 will attempt to look for the older pypki2 `~/.mypki` file, or use NBGallery's Javascript certificate upload dialog.
 
 ## Usage
 
