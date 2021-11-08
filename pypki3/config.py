@@ -92,6 +92,17 @@ def make_pypki2_config(path: Path) -> Config:
         ca=ca_path,
     )
 
+def pypki2_config_ready(config_path: Path) -> bool:
+    '''
+    Returns True if the pypki2 config file exists
+    and contains a .p12 file path.  Otherwise False.
+    '''
+    try:
+        config = make_pypki2_config(config_path)
+        return config.p12 is not None
+    except FileNotFoundError:
+        return False
+
 def ipython_config(config_path: Path) -> bool:
     '''
     Attempts to use the pypki2 configuration dialog.
@@ -101,23 +112,19 @@ def ipython_config(config_path: Path) -> bool:
     environment was not correct.
     '''
     if in_ipython() and in_nbgallery():
+        if pypki2_config_ready(config_path):
+            return True
+
         from IPython.display import display, Javascript  # pylint: disable=E0401
         display(Javascript("MyPKI.init({'no_verify':true, configure:true});"))
 
         # Loop until the user completes the
         # Javascript dialog above, which
         # creates the .mypki file.
-        while True:
-            try:
-                config = make_pypki2_config(config_path)
-            except FileNotFoundError:
-                sleep(2)
-                continue
+        while not config_path.exists():
+            sleep(2)
 
-            if config.p12 is None:
-                return False
-
-            return True
+        return pypki2_config_ready(config_path)
 
     return False
 
