@@ -2,7 +2,7 @@
 'Functions for handling configuration.'
 
 from configparser import ConfigParser
-from dataclasses import dataclass
+from collections import namedtuple
 from enum import auto, Enum
 from getpass import getpass
 from json import loads
@@ -32,16 +32,9 @@ class ConfigType(Enum):
     Pypki2 = auto()
     Pypki3 = auto()
 
-@dataclass
-class Config:
-    p12: Optional[Path]
-    pem: Optional[Path]
-    ca: Optional[Path]
-
-@dataclass
-class LoadedPKIBytes:
-    key: bytes
-    cert: bytes
+# Using namedtuple instead of dataclass for Python 3.6 compatibility
+Config = namedtuple('Config', ['p12', 'pem', 'ca'])
+LoadedPKIBytes = namedtuple('LoadedPKIBytes', ['key', 'cert'])
 
 def make_pypki3_config(path: Path) -> Config:
     config = ConfigParser()

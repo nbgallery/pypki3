@@ -12,7 +12,7 @@ readme = "README.md"
 version = "0.0.1"
 
 [tool.poetry.dependencies]
-python = ">=3.7"
+python = ">=3.6"
 cryptography = "*"
 pem = "*"
 temppath = "*"
@@ -28,8 +28,8 @@ isolated_build = true
 
 [gh-actions]
 python =
-	3.8: py38
-	3.9: py39
+	3.6: py36
+	3.10: py310
 
 [testenv]
 recreate = true
