@@ -301,7 +301,7 @@ class Loader:
         with ContextManagerClass(password) as key_cert_paths:
             key_path = key_cert_paths[0]
             cert_path = key_cert_paths[1]
-            context = ssl.SSLContext()
+            context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
             context.load_cert_chain(cert_path, key_path)
             context.verify_mode = ssl.CERT_REQUIRED
             context.load_verify_locations(cafile=self.ca_path())
