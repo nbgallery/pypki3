@@ -195,7 +195,7 @@ def loaded_encoded_pem(key_obj: Any, cert_obj: Any) -> LoadedPKIBytes:
 def separate_pem(pem_data: bytes) -> Tuple[bytes, List[bytes]]:
     certs = parse_pem(pem_data)
 
-    if len(certs) == 1:
+    if len(certs) < 2:
         raise Pypki3Exception('PEM must contain the key then certificate(s)')
 
     return certs[0].as_bytes(), [x.as_bytes() for x in certs[1:]]
