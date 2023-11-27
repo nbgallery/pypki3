@@ -192,21 +192,33 @@ def loaded_encoded_pem(key_obj: Any, cert_obj: Any) -> LoadedPKIBytes:
     cert_bytes = cert_obj.public_bytes(Encoding.PEM)
     return LoadedPKIBytes(key_bytes, cert_bytes)
 
-def separate_pem(pem_data: bytes) -> Tuple[bytes, bytes]:
+def separate_pem(pem_data: bytes) -> Tuple[bytes, List[bytes]]:
     certs = parse_pem(pem_data)
 
-    if len(certs) != 2:
-        raise Pypki3Exception('PEM must contain the key then certificate')
+    if len(certs) == 1:
+        raise Pypki3Exception('PEM must contain the key then certificate(s)')
 
-    return certs[0].as_bytes(), certs[1].as_bytes()
+    return certs[0].as_bytes(), [x.as_bytes() for x in certs[1:]]
+
+def find_matching_cert(key_obj: Any, certs_data: List[bytes]) -> Any:
+    key_public_num = key_obj.public_key().public_numbers()
+
+    for cert_data in certs_data:
+        cert_obj = x509.load_pem_x509_certificate(cert_data)
+        cert_public_num = cert_obj.public_key().public_numbers()
+
+        if key_public_num.e == cert_public_num.e and key_public_num.n == cert_public_num.n:
+            return cert_obj
+
+    raise Pypki3Exception('Could not find certificate that matches key')
 
 def load_pem_with_password(pem_data: bytes, password: Optional[str]) -> LoadedPKIBytes:
-    key_data, cert_data = separate_pem(pem_data)
+    key_data, certs_data = separate_pem(pem_data)
 
     # try the provided password
     if password is not None:
         key_obj = load_pem_private_key(key_data, password.encode('utf8'))
-        cert_obj = x509.load_pem_x509_certificate(cert_data)
+        cert_obj = find_matching_cert(key_obj, certs_data)
         return loaded_encoded_pem(key_obj, cert_obj)
 
     # try no password
@@ -215,7 +227,7 @@ def load_pem_with_password(pem_data: bytes, password: Optional[str]) -> LoadedPK
     except TypeError:
         pass
     else:
-        cert_obj = x509.load_pem_x509_certificate(cert_data)
+        cert_obj = find_matching_cert(key_obj, certs_data)
         return loaded_encoded_pem(key_obj, cert_obj)
 
     # prompt for password
@@ -229,7 +241,7 @@ def load_pem_with_password(pem_data: bytes, password: Optional[str]) -> LoadedPK
             continue
 
         else:
-            cert_obj = x509.load_pem_x509_certificate(cert_data)
+            cert_obj = find_matching_cert(key_obj, certs_data)
             return loaded_encoded_pem(key_obj, cert_obj)
 
 def get_decrypted_pem(config: Config, password: Optional[str]) -> LoadedPKIBytes:
