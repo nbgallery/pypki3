@@ -23,7 +23,7 @@ pytest = "^5.2"
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py311
+envlist = py36,py311
 isolated_build = true
 
 [gh-actions]
