@@ -21,7 +21,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from cryptography import x509
 
-from pem import parse as parse_pem
+from pem import parse as parse_pem, PrivateKey, Certificate
 
 from temppath import TemporaryPath, TemporaryPathContext
 
@@ -193,12 +193,26 @@ def loaded_encoded_pem(key_obj: Any, cert_obj: Any) -> LoadedPKIBytes:
     return LoadedPKIBytes(key_bytes, cert_bytes)
 
 def separate_pem(pem_data: bytes) -> Tuple[bytes, List[bytes]]:
-    certs = parse_pem(pem_data)
+    pem_objs = parse_pem(pem_data)
+    key = None
+    certs = list()
+    
+    for pem_obj in reversed(pem_objs):
+        if isinstance(pem_obj, PrivateKey):
+            key = pem_obj
+        elif isinstance(pem_obj, Certificate):
+            certs.append(pem_obj)
 
-    if len(certs) < 2:
-        raise Pypki3Exception('PEM must contain the key then certificate(s)')
+    if not key and not certs:
+        raise Pypki3Exception('PEM missing key and certificate(s)')
 
-    return certs[0].as_bytes(), [x.as_bytes() for x in certs[1:]]
+    if key and not certs:
+        raise Pypki3Exception('PEM contains key but is missing certificate(s)')
+
+    if certs and not key:
+        raise Pypki3Exception('PEM contains certificate(s) but is missing key')
+
+    return key.as_bytes(), [cert.as_bytes() for cert in certs]
 
 def find_matching_cert(key_obj: Any, certs_data: List[bytes]) -> Any:
     key_public_num = key_obj.public_key().public_numbers()
