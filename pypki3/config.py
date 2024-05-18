@@ -205,9 +205,11 @@ def separate_pem(pem_data: bytes) -> Tuple[bytes, List[bytes]]:
 
     if not key and not certs:
         raise Pypki3Exception('PEM missing key and certificate(s)')
-    elif key and not certs:
+
+    if key and not certs:
         raise Pypki3Exception('PEM contains key but is missing certificate(s)')
-    elif certs and not key:
+
+    if certs and not key:
         raise Pypki3Exception('PEM contains certificate(s) but is missing key')
 
     return key.as_bytes(), [cert.as_bytes() for cert in certs]
