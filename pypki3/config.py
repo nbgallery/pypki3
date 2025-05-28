@@ -14,6 +14,7 @@ from typing import Any, List, Optional, Tuple
 import ssl
 import subprocess
 import sys
+import datetime
 
 from cryptography.hazmat.primitives.serialization.pkcs12 import load_key_and_certificates
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
@@ -310,6 +311,17 @@ class Loader:
                 self.loaded_pki_bytes = get_decrypted_p12(self.config, password)
             elif self.config.pem is not None:
                 self.loaded_pki_bytes = get_decrypted_pem(self.config, password)
+        self.check_cert_expiration()
+
+    def check_cert_expiration(self) -> None:
+        '''
+        Checks if the loaded certificate has expired.
+        Raises a Pypki3Exception if the certificate is expired.
+        '''
+        cert = x509.load_pem_x509_certificate(self.loaded_pki_bytes.cert)
+        expiration_date = cert.not_valid_after_utc
+        if datetime.datetime.now(tz=datetime.timezone.utc) > expiration_date:
+            raise Pypki3Exception(f'Certificate expired on {expiration_date}. Please renew your certificate.')
 
     def ca_path(self) -> Path:
         'Convenience function for getting the certificate authority file path.'
