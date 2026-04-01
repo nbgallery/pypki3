@@ -125,9 +125,13 @@ def ipython_config(config_path: Path) -> bool:
 def get_config_path() -> Tuple[ConfigType, Path]:
     'Finds the path of the config file or raises an exception.'
 
+    xdg_config_home = Path.home().joinpath('.config')
+    if 'XDG_CONFIG_HOME' in environ:
+        xdg_config_home = Path(environ['XDG_CONFIG_HOME'])
+
     # standard paths
     possible_paths: List[Tuple[ConfigType, Path]] = [
-        (ConfigType.Pypki3, Path.home().joinpath('.config/pypki3/config.ini')),
+        (ConfigType.Pypki3, xdg_config_home.joinpath('pypki3/config.ini')),
         (ConfigType.Pypki3, Path('/etc/pypki3/config.ini')),
     ]
 
